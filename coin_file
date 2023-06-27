@@ -1,0 +1,1511 @@
+@using System;
+@using System.Data;
+@using UserClass;
+@using PerformanceManager.Helper;
+@{
+    ViewBag.Title = "Ucell - Performance Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    PerformanceDetail perform = ViewBag.PerfReview; 
+
+    var cookie = Request.Cookies["coin_cookie"].Value.ToString();
+    var user_id = Validate.USER_DATA.GetUser(cookie).USER_ID;
+    var user_name = Validate.USER_DATA.GetUser(cookie).USER_LOGIN;
+
+    var hr_role = false;
+    hr_role = Validate.USER_DATA.GetUser(cookie).ROLE.Exists(x => x.ROLE_ID == 372);
+
+    var admin_role = false;
+    admin_role = Validate.USER_DATA.GetUser(cookie).ROLE.Exists(x => x.ROLE_ID == 1);
+
+
+    var access = false;
+    access = Validate.USER_DATA.GetUser(cookie).ROLE_ACTIONS.Exists(x => x.APP_ID == 340 && x.DEAL_ID == 1 && x.GROUP_ID == 380 && x.ACTION_ID == 2);
+    
+    var user_image_path = "/content/img/avatar_default.jpg";
+    var manager_image_path = "/content/img/avatar_default.jpg";
+        
+    if (user_name.Contains("@ucell.uz"))
+    {
+        user_name = user_name.Replace("@ucell.uz", "");
+        if (System.IO.File.Exists(System.Web.Hosting.HostingEnvironment.MapPath("~/Templates/thumb/" + user_name + ".png")) && user_name.ToUpper() == perform.USER_CARD_DETAIL[0].CN.Replace(" ", ".").ToUpper())
+        {
+            user_image_path = "/Templates/thumb/" + user_name + ".png";
+        }
+    }
+
+    if (perform.USER_CARD_DETAIL.Count > 0) { 
+        if (System.IO.File.Exists(System.Web.Hosting.HostingEnvironment.MapPath("~/Templates/thumb/" + perform.USER_CARD_DETAIL[0].MANAGER.Replace(" ",".") + ".png")))
+        {
+            manager_image_path = "/Templates/thumb/" + perform.USER_CARD_DETAIL[0].MANAGER.Replace(" ", ".") + ".png";
+        }
+    }
+    else
+    {
+        manager_image_path = "/Templates/thumb/" + user_name + ".png";
+    }
+
+    //ViewBag.PersFormID
+
+    ViewUser view_user = ViewBag.ViewUserObj;
+    decimal score = 0;
+    decimal what_countert = 0;
+    decimal how_counter = 0;
+    decimal overall = 0;
+
+    try { 
+        
+        if (perform.USER_OBJECTIVE.Count > 0)
+        {
+            foreach (var objective in perform.USER_OBJECTIVE)
+            {
+                if (!String.IsNullOrEmpty(objective.RATING))
+                {
+                    score = score + (Convert.ToDecimal(objective.METRIC) * Convert.ToDecimal(objective.RATING)/100);
+                    what_countert += Convert.ToInt32(objective.RATING);
+                }
+            }
+            
+            what_countert = what_countert / perform.USER_OBJECTIVE.Count;
+            what_countert = Math.Round(what_countert, 2);
+            score = Math.Round(score,2);
+        }
+    
+
+        <!--if (perform.HOW_LIST.Count > 0)
+        {
+            foreach (var how_item in perform.HOW_LIST)
+            {
+                if (how_item.RATING>0)
+                {
+                    how_counter += Convert.ToInt32(how_item.RATING);
+                }
+            }
+            how_counter = how_counter / perform.HOW_LIST.Count;
+            how_counter = Math.Round(how_counter, 2);
+        } -->
+
+    
+        if (what_countert > 0)
+        {
+            overall = score;
+            @*overall = Math.Round(overall, 2);*@
+        }
+    }
+    catch (Exception ex) { }
+    
+}      
+
+<ul class="breadcrumb no-border no-radius b-b b-light pull-in hidden-print">
+    <li><a href="/"><i class="fa fa-home"></i> Home</a></li>
+    <li><a href="/PerformanceManager/Index/1/">Performance Management</a></li>
+    <li class="active">Perfomance Review</li>
+</ul>
+
+<section class="panel panel-default" id="scroll_top_block"  ng-controller="RerfReviewCtrl">
+
+  <div class="m-b-sm ">
+    @if (perform.USER_CARD_DETAIL.Count > 0) { 
+        <h3 class="m-b m-t m-l fleft print-m-l">@perform.PERSONAL_FORM_INFO[0].SEARCH_FORM_NAME для <span class="main_user_name">@perform.USER_CARD_DETAIL[0].CN</span> </h3>
+    }
+    else
+    {
+        <h3 class="m-b m-t m-l fleft">User Not found</h3>
+    }
+
+     
+
+    @if (view_user != null && (access))
+    {
+        if (view_user.CUR_USER != null) 
+        { 
+            <div class="pull-right m-t m-r hidden-print">
+                <p>Форма у: <a href="javascript:;" class="text-info pull-right" ng-click="ChangeViewUser(@user_id)">(Become self)</a></p><div class="clear"></div>
+                <select class="view_users_all" ng-model="viewUserSelect" ng-change="ChangeViewUser(viewUserSelect)" data-ng-init="InitPMView(@view_user.CUR_USER.VIEW_AS_USER_ID)">
+                    <option>-select user-</option>
+                    @if (view_user.AD_USERS != null)
+                    {
+                        foreach (var adUser in view_user.AD_USERS)
+                        {
+                            <option value="@adUser.USER_ID">@adUser.USER_MAIL</option>
+                        }
+                    }
+                </select>
+                <div class="clear"></div>
+            </div>
+        }
+    }
+    
+      
+        <div class="clear"></div>
+        <div class="line2 line-dashed line-lg hidden-print"></div>
+
+        <div class="alert alert-danger hidden-print" style="display:none" ng-hide="global_error_state==0" ng-show="global_error_state==1"><p>{{global_error_text}}</p></div>
+        <div class="alert alert-success hidden-print" style="display:none" ng-hide="global_success_state==0" ng-show="global_success_state==1"><p>{{global_success_text}}</p></div>
+        <div class="clear"></div>
+
+    </div>  
+    
+    <!--User Card-->
+    <div class="col-sm-10 hidden-print">
+		<h4>Информация о сотруднике</h4>
+		<section class="panel panel-default">
+			<header class="panel-heading bg-info lt no-border">
+				<div class="clearfix">
+					<a href="#" class="pull-left thumb avatar b-3x m-r"><img src=@user_image_path alt="@user_name" class="img-circle"/></a>
+					<div class="">
+						@if (perform.USER_CARD_DETAIL.Count > 0) { 
+                            <div class="h3 m-t-xs m-b-xs text-white">@perform.USER_CARD_DETAIL[0].CN<i class="fa fa-circle text-white pull-right text-xs m-t-sm"></i> </div>
+						    <small class="text-muted">@perform.USER_CARD_DETAIL[0].POSITION</small> 
+                        }
+					</div>
+				</div>
+			</header>
+		</section>
+	</div>
+    <!-- end User Card-->
+    <div class="col-md-2">
+        <h4>&nbsp;</h4>
+        @if (what_countert > 0 && overall > 0) { 
+            <section class="panel panel-default">
+                <div class="row bg-info"> 
+                    <div class="col-xs-4 text-center"> <div class="padder-perf"> </div> </div> 
+                    <div class="col-xs-4 text-center"> <div class="padder-perf"> </div> </div> 
+                    <div class="col-xs-4 text-center"> <div class="padder-perf"> <span class="m-b-xs h3 block text-white">@overall</span> <small class="text-muted h5">OVERALL</small> </div> </div> 
+                </div>
+            </section>
+        }
+    </div>    
+    <div class="clear"></div>        
+    
+    <div class="col-sm-10 hidden-print">
+        <a href="#route_map" class="h4 text-info">Карта маршрута <i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>
+        @*<a href="#purpose_process" class="h4 text-info">Purpose & Process Постановка Objectives <i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>*@
+        <a href="#what_block" class="h4 text-info">ЧТО <i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>
+        <a href="#variable_pay_block" class="h4 text-info">Переменная оплата труда - Ключевые показатели эффективности <i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>
+        <a href="#objectives_block" class="h4 text-info">Индивидуальные цели<i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>
+        @*<a href="#values_block" class="h4 text-info">Values <i class="fa fa-long-arrow-right m-l-xs m-r-xs text-dark"></i></a>*@
+        <a href="#dev_plan_block" class="h4 text-info">План развития</a>
+    </div>
+    <div class="col-md-2">
+        <a class="m-r pull-right gallery" ng-click="onPrintClick()"  href="#print_version_master"><img src="/content/img/print_32.png" data-toggle="tooltip" data-placement="top" title="" data-original-title="Print"/></a>
+    </div>
+    <div class="clear">&nbsp;</div>
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+
+<!--forms status-->	
+@if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && 
+     perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+     perform.PERSONAL_FORM_INFO[0].STATE != 2)
+{			
+    <h4 id="route_map" class="hidden-print m-l">Карта маршрута</h4>
+	    <table class="table hidden-print">		
+		    <tr>
+                <td width="">Due:</td>
+                @if (perform.CUR_PERIOD_FORMS.Count > 0)
+                {
+                    foreach (var form in perform.CUR_PERIOD_FORMS)
+                    {
+                        if (form.STATE == "0")
+                        {
+                            <td><p>@form.END_DATE &nbsp;</p><a href="#" class="btn btn-xs btn-default disabled">@form.FORM_NAME</a></td>
+                            if (form.FORM_NAME.Contains("Админ") == false)
+                            {
+                                <td ><i class="fa fa-long-arrow-right m-t-lg"></i></td>
+                            }
+                        }
+                        else if (form.STATE == "1")
+                        {
+                            <td><p>@form.END_DATE &nbsp;</p><a href="#" class="btn btn-xs btn-success">@form.FORM_NAME</a></td>
+                        
+                            if (form.FORM_NAME.Contains("Админ") == false)
+                            { 
+                                <td ><i class="fa fa-long-arrow-right m-t-lg"></i></td>
+                            }
+                        }
+                        else if (form.STATE == "2")
+                        {
+                            <td><p>@form.END_DATE &nbsp;</p><a href="#" class="btn btn-xs btn-default disabled">@form.FORM_NAME Завершенный</a></td>
+                            <td ><i class="fa fa-long-arrow-right m-t-lg"></i></td>
+                            if (form.FORM_NAME.Contains("Админ") == true)
+                            {
+                                <td><p>&nbsp;</p><a href="#" class="btn btn-xs btn-success">Завершенный</a></td>			                
+                            }
+                        }
+
+                        if (form.FORM_NAME.Contains("Админ") == true)
+                        {
+                            if ((perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                                 perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                 user_id == view_user.CUR_USER.VIEW_AS_USER_ID) ||
+                                 (perform.PERSONAL_FORM_INFO[0].USER_ID == view_user.CUR_USER.VIEW_AS_USER_ID &&
+                                 perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID))
+                            {
+                                <td>
+                                    <a href="#" class="btn  m-t pull-right btn-info fleft" ng-click="SaveAndLinkTo(@perform.USER_CARD_DETAIL[0].MANAGER_ID, @perform.PERSONAL_FORM_INFO[0].ID, 1)"><i class="fa fa-mail-reply"></i>&nbsp; Сохранить и Отправить @perform.USER_CARD_DETAIL[0].MANAGER</a>
+                                </td>
+                            }
+                            else
+                            {
+                                if (form.STATE != "2") 
+                                { 
+                                    <td>
+                                        <a href="#" class="btn m-t pull-right btn-info fleft  disabled"><i class="fa fa-mail-reply"></i>&nbsp; Сохранить и Отправить @perform.USER_CARD_DETAIL[0].MANAGER</a>
+                                    </td>
+                                }
+                            }
+                        }                     
+                    }
+                }
+		    </tr>
+	    </table>
+}
+
+
+<!--end forms status-->
+
+  
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+    <h4 id="what_block" class="hidden-print m-l hidden-print">ЧТО</h4>		
+
+
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+    <h4 id="variable_pay_block" class="hidden-print m-l hidden-print">Переменная оплата труда - Ключевые показатели эффективности</h4>			
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+
+
+	<section class="scrollable padder">
+        <div class="print-header-name">
+	        <h3 class="fleft m-r " id="objectives_block" >Индивидуальные цели @* @if (perform.USER_OBJECTIVE.Count > 0) { <span class="h5">@perform.USER_OBJECTIVE.Count item(s)</span> } *@
+            </h3>
+	        <div class="pull-right">
+                @if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                        (
+                          (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                           perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                           user_id == view_user.CUR_USER.VIEW_AS_USER_ID)
+                           ||
+                          (perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID)
+                            ||
+                            (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id &&
+                             user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                        )
+                    )
+                    {
+                        if (perform.USER_OBJECTIVE.Count < 5) { 
+                                <a href="#add_new_obj" class="btn btn-default gallery hidden-print"  ><i class="fa fa-plus m-r"  ></i>Добавить цель</a> 
+                        }
+                        else
+                        {
+                            <div data-toggle="tooltip" data-placement="left" title="" data-original-title="You can't create more than 5 goals"><a href="#add_new_obj" class="btn btn-default hidden-print disabled"  ><i class="fa fa-plus m-r"  ></i>Добавить цель</a> </div>
+                        }
+                    }
+            </div><div class="clear"></div>
+        </div>
+
+
+   
+
+
+	    <div class="clear">&nbsp;</div>
+
+         @if (perform.USER_OBJECTIVE.Count > 0)
+         {
+             var obj_iterator = 0;
+             foreach (var objective in perform.USER_OBJECTIVE)
+             {
+                 obj_iterator++;
+                 var user_comments = (from p in perform.COMMENTS 
+                                      where (p.OBJECTIVE_ID == objective.ID || p.OBJECTIVE_ID == objective.OLD_ID) && p.USER_ID == perform.PERSONAL_FORM_INFO[0].USER_ID 
+                                      select p).ToList();
+                 
+                 var manager_comments = new List<ObjectiveComment>();
+                 if (perform.USER_CARD_DETAIL.Count > 0)
+                 {
+                     manager_comments = (from p in perform.COMMENTS 
+                                         where (p.OBJECTIVE_ID == objective.ID || p.OBJECTIVE_ID == objective.OLD_ID) && p.USER_ID == perform.USER_CARD_DETAIL[0].MANAGER_ID 
+                                         select p).ToList();
+                 }
+                 
+                 
+                 var metric = objective.METRIC.ToString().Replace("\n", "<br/>");
+                 var description = objective.DESCRIPTION.ToString().Replace("\n", "<br/>");
+                 
+                 <div class="panel panel-default">
+                     <table class="table goal_table" data-review-id="@objective.ID" data-form="@objective.FORM_ID">
+                         <thead class="bg-light dker">
+		                    <tr>
+                                <th width="2%" class="bg-dark"><p class="h4" style="color:#fff">@obj_iterator</p></th>
+			                    <th width="20%">ОПИСАНИЕ ЦЕЛИ</th>
+			                    <th width="24%">КРИТЕРИЙ ДОСТИЖЕНИЯ</th>
+			                    <th width="24%">ВЕС</th>
+			                    <th width="15%">СТАТУС</th>
+			                    <th width="15%" class="hidden-print">ДЕЙСТВИЕ</th>
+		                    </tr> 
+                        </thead>  
+                        <tbody>
+                            <tr data-id="objective_@objective.ID" data-obj="@objective.ID">
+                                <td width="2%" ></td>
+			                    <td width="20%" class="obj_name">@objective.NAME</td>
+			                    <td width="24%" class="obj_desc">@Html.Raw(description)</td>
+			                    <td width="24%" class="obj_metric">@Html.Raw(metric)</td>
+			                    <td width="15%" class="obj_state_name" data-state="@objective.STATE"><span class="btn btn-xs btn-warning obj-state-btn">@objective.STATE_NAME</span></td>
+                            <td width="15%" class="hidden-print">
+                                @if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && perform.PERSONAL_FORM_INFO[0].STATE != 2)
+                                {
+                                    if (perform.USER_CARD_DETAIL.Count > 0)
+                                    {
+                                        //if review is mine
+                                        if (
+                                              (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                                              perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                              || 
+                                              perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                            )
+                                            { 
+                                                
+                                                if (perform.CUR_FORM.FORM_NAME.Contains("Постановка"))
+                                                {
+                                                    <a href="javascript:;" style="font-size:18px;" class="fa fa-trash-o m-r" ng-click="DeleteObjective(@objective.ID)"></a>
+                                                }
+                                                <a href="#edit_current_objective" style="font-size:18px;" class="fa fa-pencil-square-o gallery" ng-click="EditObjective(@objective.ID)"></a>
+                                            }
+                                            //if review is not my, but i'm a manager
+                                            else if (
+                                                    (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                                                     user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                                     || 
+                                                     perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                                     )
+                                            {
+                                                <a href="#edit_current_objective" style="font-size:18px;" class="fa fa-pencil-square-o gallery" ng-click="EditObjective(@objective.ID)"></a>                                        
+                                            }
+                                    }
+                                    else
+                                    {
+                                        if (
+                                              (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                                               perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                               || 
+                                               perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                            )
+                                        {
+                                            if (perform.CUR_FORM.FORM_NAME.Contains("Постановка"))
+                                            {
+                                                <a href="javascript:;" style="font-size:18px;" class="fa fa-trash-o m-r" ng-click="DeleteObjective(@objective.ID)"></a>
+                                            }
+                                                
+                                                <a href="#edit_current_objective" style="font-size:18px;" class="fa fa-pencil-square-o gallery" ng-click="EditObjective(@objective.ID)"></a>
+                                            }
+                                    }
+                                }
+                            </td>
+		                </tr>
+	                    </tbody>                  
+                     </table>
+                    <div class="line2 line-dashed line-lg hidden-print"></div>
+	                <div class="clear" data-review-id="@objective.ID"></div>
+	                <div class="table hidden-print rating_comments_table" data-review-id="@objective.ID">
+
+				            <div class="col-md-2"><b>Рейтинг:</b> <span><i class="rating-cur-value">@objective.RATING</i></span>
+                        
+                        @*((perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                                    user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO  &&
+                                    perform.PERSONAL_FORM_INFO[0].USER_ID == user_id) || perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id) &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Админ") == false*@
+                            @if (
+
+                                    ((perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) ||
+                                     (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO)
+                                     ) &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Админ") == false
+                                
+                                )
+                            {
+                                <div class="objective_rating" data-rating="@objective.RATING">
+
+                                    <select class="form-control input-sm m-t select-rating" data-obj="@objective.ID">
+                                        <option value="0" >Не оценено</option>
+                                        <option value="0"
+                                                @if(objective.RATING=="0")
+                                                { 
+                                                    @:selected="selected" 
+                                                }
+                                                >Не выполнено</option>
+                                        <option value="90"
+                                                @if(objective.RATING=="90")
+                                                { 
+                                                    @:selected="selected" 
+                                                }
+                                                >Min,%</option>
+                                        <option value="100"
+                                                @if(objective.RATING=="100")
+                                                { 
+                                                    @:selected="selected" 
+                                                }
+                                                >Target,%</option>
+                                        <option value="110"
+                                                @if(objective.RATING=="110")
+                                                { 
+                                                    @:selected="selected" 
+                                                }
+                                                >Max,%</option>
+                                        
+                                    </select>
+                                </div>
+                            }
+                            </div>
+				            <div class="col-md-2"></div>
+                            <div class="col-md-4"><b>
+                                @if (perform.USER_CARD_DETAIL.Count > 0)
+                                {
+                                    @(perform.USER_CARD_DETAIL[0].MANAGER)
+                                }
+                                    
+                                Комментарий:</b>
+
+                            @if (manager_comments.Count == 0)
+                            {
+                                @:<i>Нет комментариев</i>
+                            } 
+                            else
+                            {
+                                <div class="clear">&nbsp;</div> 
+                                foreach (var comm in manager_comments)
+                                {
+                                    <article class="comment-item"> 
+                                        <section class="comment-body m-b"> 
+                                            <header> 
+                                                <span class="text-muted text-xs"><i class="fa fa-clock-o m-l-xs"></i> @comm.INS_DATE</span> 
+                                            </header> 
+                                            <div class="m-l-xs manager-comment-text">@comm.COMMENT_TEXT</div> 
+                                        </section> 
+                                    </article>
+                                }
+                            } 
+                            @if (perform.USER_CARD_DETAIL.Count > 0)
+                            {
+                                if (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                                    user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Админ") == false)
+                                {
+                                    <div class="clear">&nbsp;</div>
+                                    <textarea data-id="@objective.ID" name="" class="input-sm input-s form-control fleft user_comment" rows="3" cols="20"></textarea>
+                                    @*<input data-id="@objective.ID" name="" class=" input-sm input-s form-control fleft user_comment" size="16" type="text" value="" />*@
+                                    <a href="javascript:;" ng-click="AddComment(@objective.ID,  @perform.PERSONAL_FORM_INFO[0].ID, 1)" class="btn btn-xs  m-l m-t-xs btn-info fleft m-r "><i class="fa fa-comment"></i>&nbsp; Добавить комментарий</a>
+                                    <div class="clear"></div>                                    
+                                }
+                            }
+                        </div>                            
+				        <div class="col-md-4">
+                            <b>
+                                @if (perform.USER_CARD_DETAIL.Count > 0)
+                                {
+                                    @perform.USER_CARD_DETAIL[0].CN
+                                }
+                                Комментарий:</b> 
+                                @if (user_comments.Count == 0){
+                                    @:<i>Нет комментариев</i>
+                                }
+                                else
+                                {
+                                    <div class="clear">&nbsp;</div> 
+                                    foreach (var comm in user_comments)
+                                    {
+                                        <article class="comment-item"> 
+                                            <section class="comment-body m-b"> 
+                                                <header> 
+                                                    <span class="text-muted text-xs"><i class="fa fa-clock-o m-l-xs" ></i> @comm.INS_DATE</span> 
+                                                </header> 
+                                                <div class="m-l-xs emp-comment-text">@comm.COMMENT_TEXT</div> 
+                                            </section> 
+                                        </article>
+                                    }
+                                }     
+                            @if (
+                                    perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && 
+                                    perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                                    user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                    perform.PERSONAL_FORM_INFO[0].USER_ID == view_user.CUR_USER.VIEW_AS_USER_ID &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Админ") == false
+                                )
+                            {
+                                <div class="clear">&nbsp;</div>
+                                <textarea data-id="@objective.ID" name="" autocomplete="off" class="input-sm input-s form-control fleft user_comment" rows="3" cols="20"></textarea>
+                                @*<input  data-id="@objective.ID" name="" autocomplete="off" class=" input-sm input-s form-control fleft user_comment" size="16" type="text" value="" />*@
+                                <a href="javascript:;" ng-click="AddComment(@objective.ID,  @perform.PERSONAL_FORM_INFO[0].ID, 2)" class="btn btn-xs  m-l m-t-xs btn-info fleft m-r"><i class="fa fa-comment"></i>&nbsp; Добавить комментарий</a>
+                                <div class="clear">&nbsp;</div>
+                            }
+                        </div>
+	                </div>
+	                <div class="clear" data-review-id="@objective.ID"></div>
+                </div>
+             }
+         }
+
+	   
+        <div class="clear"></div>
+       
+
+	</section>		
+    
+  
+    <!--HOW-->
+    
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+    <h3 id="values_block" class="hidden-print m-l">Values</h3>	
+    <section class="scrollable padder hidden-print values-block">
+        <p><i>It's not only about what you achieve, but how you achieve it! Our values; Dare, Care and Simplify guide us how to act in our daily work to make us successful creating a New Generation Telco. Our values are expressed as key behaviors for all employees and additional leadership expectations for leaders.<br/> Discuss and provide feedback on the key behaviors.</i></p>
+
+
+
+        @if (perform.HOW_LIST.Count > 0) {
+            var i = 0;
+            foreach (var how in perform.HOW_LIST)
+            {
+                i++;
+                var how_employee_comments = (from p in perform.HOW_COMMENTS
+                                             where (p.HOW_ID == how.RATING_ID) && p.USER_ID == perform.PERSONAL_FORM_INFO[0].USER_ID
+                                     select p).ToList();
+                var how_manager_comments = (from p in perform.HOW_COMMENTS
+                                            where (p.HOW_ID == how.RATING_ID) && p.USER_ID == perform.USER_CARD_DETAIL[0].MANAGER_ID
+                                            select p).ToList();
+                
+                
+                <div class="alert alert-info">
+                    <h4 class="value-header">@i - @how.HOW_HEADER</h4>
+                    <p class="h5 value-header-to"><b>I @how.HOW_HEADER to:</b></p>
+                    <div class="values-text">@Html.Raw(how.HOW_TEXT)</div>
+                    <div class="how_dare_rating col-md-2 no-padder" data-how-id="@how.HOW_ID" data-how="@how.RATING_ID">
+                        <label class="m-t"><b><i>Рейтинг: <span class="how-rating-text">@how.RATING</span></i></b></label>
+                        @if (
+                                ((perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) ||
+                                 (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO)
+                                 ) &&
+                                perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                perform.CUR_FORM.FORM_NAME.Contains("Админ") == false
+                            )
+                        {
+                            <select class="form-control input-sm how_rating_select" data-how="@how.RATING_ID">
+                                <option value="0" selected="">Не оценено</option>
+                                <option value="1"
+                                        @if (how.RATING == 1) {  @: selected="selected"
+                                                                                }>
+                                    Не выполнено
+                                </option>
+                                <option value="2"
+                                        @if (how.RATING == 2) {  @: selected="selected"
+                                                                                }>
+                                    Частично выполнено
+                                </option>
+                                <option value="3"
+                                        @if (how.RATING == 3) {  @: selected="selected"
+                                                                                }>
+                                    Выполнено
+                                </option>
+                                <option value="4"
+                                        @if (how.RATING == 4) {  @: selected="selected"
+                                                                                }>
+                                    Перевыполнено
+                                </option>
+                                <option value="5"
+                                        @if (how.RATING == 5) {  @: selected="selected"
+                                                                                }>
+                                    Значительно перевыполнено
+                                </option>
+                            </select>
+                        }
+                    </div>
+
+                    <div class="col-sm-2"></div>
+                    <div class="col-sm-4">
+                        <label class="m-t"><b>
+                              @if (perform.USER_CARD_DETAIL.Count > 0)
+                                {
+                                    @(perform.USER_CARD_DETAIL[0].MANAGER)
+                                }
+                                Комментарий:
+                            </b></label>
+                        @if (how_manager_comments.Count == 0)
+                        {
+                            @:<i>Нет комментариев</i>
+                        }
+                        else
+                        {
+                            <div class="clear">&nbsp;</div> 
+                            foreach (var comm in how_manager_comments)
+                            {
+                                <article class="comment-item"> 
+                                    <section class="comment-body m-b"> 
+                                        <header> 
+                                            <span class="text-muted text-xs"><i class="fa fa-clock-o m-l-xs" ></i> @comm.INS_DATE</span> 
+                                        </header> 
+                                        <div class="m-l-xs">@comm.COMMENT_TEXT</div> 
+                                    </section> 
+                                </article>
+                            }
+                        } 
+                        <div class="clear"></div>
+                        @if (perform.USER_CARD_DETAIL.Count > 0)
+                        {
+                            if (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                                user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                perform.CUR_FORM.FORM_NAME.Contains("Админ") == false)
+                            {
+                                <input name="" class=" input-sm input-s form-control fleft how_manager_comment " autocomplete="off" size="16" type="text" value="" data-id="@how.RATING_ID" />
+                                <a href="javascript:;"  class="btn btn-xs  m-l m-t-xs btn-info fleft m-r " ng-click="AddHowComment(@how.RATING_ID,  @perform.PERSONAL_FORM_INFO[0].ID, 2)"><i class="fa fa-comment"></i>&nbsp; Добавить комментарий</a>                   
+                            }
+                        }
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="m-t"><b>
+                             @if (perform.USER_CARD_DETAIL.Count > 0)
+                                {
+                                    @perform.USER_CARD_DETAIL[0].CN
+                                }
+                                Комментарий:
+                            </b></label>
+                        @if (how_employee_comments.Count == 0)
+                        {
+                            @:<i>Нет комментариев</i>
+                        }
+                        else
+                        {
+                            <div class="clear">&nbsp;</div> 
+                            foreach (var comm in how_employee_comments)
+                            {
+                                <article class="comment-item"> 
+                                    <section class="comment-body m-b"> 
+                                        <header> 
+                                            <span class="text-muted text-xs"><i class="fa fa-clock-o m-l-xs" ></i> @comm.INS_DATE</span> 
+                                        </header> 
+                                        <div class="m-l-xs">@comm.COMMENT_TEXT</div> 
+                                    </section> 
+                                </article>
+                            }
+                        } 
+                        <div class="clear"></div>
+
+                       
+                        
+
+
+                         @if (
+                                 perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                                    perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                                    user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                    perform.PERSONAL_FORM_INFO[0].USER_ID == view_user.CUR_USER.VIEW_AS_USER_ID &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                    perform.CUR_FORM.FORM_NAME.Contains("Админ") == false
+                            )
+                         {
+                            <textarea name="" class="input-sm input-s form-control fleft how_comment" autocomplete="off" rows="3" cols="20" data-id="@how.RATING_ID"></textarea>
+                            @*<input name="" class=" input-sm input-s form-control fleft how_comment " autocomplete="off" size="16" type="text" value="" data-id="@how.RATING_ID" />*@
+                            <a href="javascript:;"  class="btn btn-xs  m-l m-t-xs btn-info fleft m-r " ng-click="AddHowComment(@how.RATING_ID,  @perform.PERSONAL_FORM_INFO[0].ID, 1)"><i class="fa fa-comment"></i>&nbsp; Добавить комментарий</a>
+                         }
+                         
+
+                        @* @if (perform.USER_CARD_DETAIL.Count > 0)
+                                    {
+                                        if (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                                            user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                                            perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                                            perform.CUR_FORM.FORM_NAME.Contains("Админ") == false)
+                                        {
+                                            <div class="clear">&nbsp;</div>
+                                            <input data-id="@objective.ID" name="" class=" input-sm input-s form-control fleft user_comment" size="16" type="text" value="" />
+                                            <a href="javascript:;" ng-click="AddComment(@objective.ID,  @perform.PERSONAL_FORM_INFO[0].ID, 1)" class="btn btn-xs  m-l m-t-xs btn-info fleft m-r "><i class="fa fa-mail-reply"></i>&nbsp; Add Comment</a>
+                                            <div class="clear"></div>*@                                    
+                                        }
+                                    }
+                    </div>
+                    <div class="clear"></div>
+                </div>
+            }
+        }
+
+    </section>
+    	
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+
+
+    <!--DEVELOPMENT PLAN-->
+    <h3 id="dev_plan_block" class="m-l pull-left">План развития @* @if (perform.DEV_PLAN.Count > 0) { <span class="h5">@perform.DEV_PLAN.Count item(s)</span> } *@ </h3>
+    <div class="pull-right">
+         @if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                (
+                    (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                    perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                    user_id == view_user.CUR_USER.VIEW_AS_USER_ID)
+                    ||
+                    (perform.PERSONAL_FORM_INFO[0].USER_ID == view_user.CUR_USER.VIEW_AS_USER_ID &&
+                    perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID)
+                )
+             )
+            {
+                <a href="#add_new_dev_plan" class="btn btn-default gallery hidden-print m-r" ng-click="AddPlanClick()"><i class="fa fa-plus m-r" ></i>Добавить План развития</a> 
+
+            }
+    </div>
+    <div class="clear">&nbsp;</div>
+    <div class="panel panel-default">		
+        <table class="table  development-plan-table">
+            <thead class="bg-light dker">
+                <tr> 
+			        <th width="20%">ЗОНА РАЗВИТИЯ</th>
+			        <th width="25%">ДЕЙСТВИЕ / ВРЕМЕННЫЕ РАМКИ</th>
+			        <th width="25%">РЕЗУЛЬТАТ, КОТОРЫЙ ДОЛЖЕН БЫТЬ ДОСТИГНУТ</th>
+			        <th width="15%">СТАТУС</th>
+                    <th width="15%" class="hidden-print">ДЕЙСТВИЕ</th>
+		        </tr>
+            </thead>
+            <tbody>
+            @if (perform.DEV_PLAN.Count > 0) 
+            {
+                foreach (var plan in perform.DEV_PLAN)
+                {
+                    <tr data-id="plan_@plan.ID">
+                        <td width="20%" class="plan-name">@plan.NAME</td>
+                        <td width="25%" class="plan-action">@plan.ACTION</td>
+                        <td width="25%" class="plan-result">@plan.RESULT</td>
+                        <td width="15%" data-state="@plan.STATE" class="plan-state"><span class="btn btn-xs plan-state-text btn-warning">@plan.STATE_NAME</span></td>
+                        <td width="15%" class="hidden-print">
+
+                             @if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && perform.PERSONAL_FORM_INFO[0].STATE != 2)
+                                {
+                                    if (perform.USER_CARD_DETAIL.Count > 0)
+                                    {
+                                        //if review is mine
+                                        if (
+                                              (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                                              perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                              || 
+                                              perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                            )
+                                        { 
+                                            <a href="#edit_dev_plan" style="font-size:18px;" class="fa fa-pencil-square-o gallery fleft m-r" ng-click="EditDevPlanClick(@plan.ID)"></a>
+                                            <a href="javascript:;" style="font-size:18px;" class="fa fa-trash-o fleft" ng-click="DeleteDevPlan(@plan.ID)" ></a>
+                                        }
+                                        //if review is not my, but i'm a manager
+                                        else if (
+                                                (perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                                                 user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                                 || 
+                                                 perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                                 )
+                                        {
+                                            <a href="#edit_dev_plan" style="font-size:18px;" class="fa fa-pencil-square-o gallery fleft m-r" ng-click="EditDevPlanClick(@plan.ID)"></a>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (
+                                              (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                                               perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                                               || 
+                                               perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID
+                                            )
+                                            { 
+                                                <a href="#edit_dev_plan" style="font-size:18px;" class="fa fa-pencil-square-o gallery fleft m-r" ng-click="EditDevPlanClick(@plan.ID)"></a>
+                                                <a href="javascript:;" style="font-size:18px;" class="fa fa-trash-o fleft" ng-click="DeleteDevPlan(@plan.ID)" ></a>
+                                            }
+                                    }
+                                }                           
+                            <div class="clear"></div>
+                        </td>
+                    </tr>
+                }                 
+            }   
+            </tbody>     
+        </table>
+    </div>
+    <!--END DEVELOPMENT PLAN-->
+    <div class="clear">&nbsp;</div>
+     @if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID && perform.PERSONAL_FORM_INFO[0].STATE != 2)
+        {
+            if (perform.USER_CARD_DETAIL.Count > 0)
+            {
+                //if review is mine
+                if ((perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                     perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO && 
+                     user_id == view_user.CUR_USER.VIEW_AS_USER_ID) || 
+                     (perform.PERSONAL_FORM_INFO[0].USER_ID == view_user.CUR_USER.VIEW_AS_USER_ID && 
+                     perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID))
+                    { 
+                        if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                             perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                             @*perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&*@
+                             perform.CUR_FORM.FORM_NAME.Contains("Админ") == false)
+                        {
+	                        <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SaveRating(@perform.PERSONAL_FORM_INFO[0].ID)">
+                                <i class="fa fa-save"></i>&nbsp; Cохранить "@(perform.CUR_FORM.FORM_NAME)" и Закрыть
+                            </a>  
+                        }
+	                        <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SaveAndLinkTo(@perform.USER_CARD_DETAIL[0].MANAGER_ID, @perform.PERSONAL_FORM_INFO[0].ID, 1)">
+                                <i class="fa fa-mail-reply"></i>&nbsp; Сохранить и Отправить @perform.USER_CARD_DETAIL[0].MANAGER
+                            </a>
+                        
+                        <div class="clear hidden-print">&nbsp;</div>
+                    }
+                
+                //if review is not my, but i'm a manager
+                else if ((perform.USER_CARD_DETAIL[0].MANAGER_ID == user_id && 
+                          user_id == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO) 
+                          || 
+                          (perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO == view_user.CUR_USER.VIEW_AS_USER_ID)
+                          ||
+                          (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                           perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO &&
+                           user_id == view_user.CUR_USER.VIEW_AS_USER_ID))
+                {
+                    
+                    
+                    <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SaveAndLinkTo(@perform.PERSONAL_FORM_INFO[0].USER_ID, @perform.PERSONAL_FORM_INFO[0].ID, 2)"><i class="fa fa-mail-reply">
+                            </i>&nbsp; Вернуть обратно @perform.USER_CARD_DETAIL[0].CN
+                    </a>
+	                <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SetComplete(@perform.PERSONAL_FORM_INFO[0].ID)">
+                        <i class="fa fa-save"></i>&nbsp; @perform.CUR_FORM.FORM_NAME.Replace("Поставка", "") Завершить
+                    </a>
+                    <div class="clear">&nbsp;</div>
+                }
+            }
+            
+            
+            @*else
+            {
+                if (perform.PERSONAL_FORM_INFO[0].USER_ID == user_id && 
+                    perform.PERSONAL_FORM_INFO[0].USER_ID == perform.PERSONAL_FORM_INFO[0].CURRENT_LINK_TO && 
+                    user_id == view_user.CUR_USER.VIEW_AS_USER_ID)
+                { 
+                    if (perform.CUR_FORM.ID == perform.PERSONAL_FORM_INFO[0].FORM_ID &&
+                        perform.PERSONAL_FORM_INFO[0].USER_ID == user_id &&
+                        perform.CUR_FORM.FORM_NAME.Contains("Постановка") == false &&
+                        perform.CUR_FORM.FORM_NAME.Contains("Админ") == false)
+                            {
+	                            <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SaveRating(@perform.PERSONAL_FORM_INFO[0].ID)">
+                                    <i class="fa fa-save"></i>&nbsp; Save "@(perform.CUR_FORM.FORM_NAME)"
+                                </a>   
+                            }   
+                                  
+	                <a href="javascript:;" class="btn btn-info fright m-r hidden-print" ng-click="SaveAndLinkTo(@perform.USER_CARD_DETAIL[0].MANAGER_ID, @perform.PERSONAL_FORM_INFO[0].ID, 1)">
+                        <i class="fa fa-mail-reply"></i>&nbsp; Сохранить и Отправить @perform.USER_CARD_DETAIL[0].MANAGER
+                    </a>
+            
+                    <div class="clear">&nbsp;</div>
+                }
+            }*@
+        }
+    <div class="clear"></div>
+
+
+
+    <div class="line2 line-dashed line-lg hidden-print"></div>
+    
+    <!-- Hidden popups -->
+    <div id="add_new_obj" class="hidden-print">
+		<h3 class="m-b-none m-t-none ">Добавить Цель</h3> <br/>
+        <div class="alert alert-danger" style="display:none" ng-hide="add_error_state==0" ng-show="add_error_state==1"><h5>{{add_error_text}}</h5></div>
+        <div class="alert alert-success" style="display:none" ng-hide="add_success_state==0" ng-show="add_success_state==1"><h5>{{add_success_text}}</h5></div>
+        <div class="clear"></div>
+		<section class="panel panel-default">
+			<div class="panel-body">
+
+				<div class="form-group"> 
+                    <label>Описание цели <span class="text-danger">*</span></label> 
+                    <textarea name="OBJECTIVE" class="FIELD_OBJECTIVE form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled") } rows="6" data-minwords="6" data-required="true"></textarea> 
+                </div>
+
+				<div class="form-group"> 
+                    @*<label>Metric <span class="text-danger">*</span></label> 
+                    <textarea name="METRIC" class="FIELD_METRIC form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled") } rows="6" data-minwords="6" data-required="true"></textarea>*@ 
+                    <label>Вес <span class="text-danger">*</span></label>
+                    <select class="FIELD_METRIC form-control " name="METRIC">
+                        <option data-action="5" selected value="5">5</option>
+                        <option data-action="10" selected value="10">10</option>
+                        <option data-action="15" selected value="15">15</option>
+                        <option data-action="20" selected value="20">20</option>
+                        <option data-action="25" selected value="25">25</option>
+                        <option data-action="30" selected value="30">30</option>
+                        <option data-action="35" selected value="35">35</option>
+                        <option data-action="40" selected value="40">40</option>
+                        <option data-action="45" selected value="45">45</option>
+                        <option data-action="50" selected value="50">50</option>
+                        <option data-action="55" selected value="55">55</option>
+                        <option data-action="60" selected value="60">60</option>
+                        <option data-action="65" selected value="65">65</option>
+                        <option data-action="70" selected value="70">70</option>
+                        <option data-action="75" selected value="75">75</option>
+                        <option data-action="80" selected value="80">80</option>
+                        <option data-action="85" selected value="85">85</option>
+                        <option data-action="90" selected value="90">90</option>
+                        <option data-action="95" selected value="95">95</option>
+                        <option data-action="100" selected value="100">100</option>
+                    </select>
+                
+                </div>
+
+				<div class="form-group"> 
+                    <label>Критерий достижения <span class="text-danger">*</span></label> 
+                    <textarea name="DESCRIPTION" class="FIELD_DESCRIPTION form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled") } rows="6" data-minwords="6" data-required="true"></textarea>
+                </div>
+
+				<div class="form-group"> 
+                    <label>На что влияет</label> 
+                    <select  class="FIELD_STATE form-control " name="STATE">
+					    <option data-action="0" selected value="0">Не определено</option>
+					    <option data-action="2" value="1">Выручка</option>
+					    <option data-action="3" value="2">OIBDA</option>
+					    <option data-action="4" value="3">ПТР</option>
+					    <option data-action="5" value="4">Выручка,OIBDA,ПТР</option>
+					    @*<option data-action="6" value="5">Отменена </option>*@
+                    </select>
+                </div>
+
+			</div>						
+		</section>
+		<a href="javascript:;" ng-click="AddEditObjClick('add_new_obj', @perform.CUR_FORM.ID, @ViewBag.PersFormID)" class="btn btn-s-md btn-info">Сохранить изменения</a>&nbsp;
+		<a href="javascript:;" class="btn btn-s-md btn-info" onclick="$.fancybox.close();">Отмена</a>			
+    </div><!-- end add obj-->	
+    
+    <div id="edit_current_objective" class="hidden-print">
+
+        <h3 class="m-b-none m-t-none ">Изменить цель</h3> <br/>
+        <div class="alert alert-danger" style="display:none" ng-hide="edit_error_state==0" ng-show="edit_error_state==1"><h5>{{edit_error_text}}</h5></div>
+        <div class="alert alert-success" style="display:none" ng-hide="edit_success_state==0" ng-show="edit_success_state==1"><h5>{{edit_success_text}}</h5></div>
+        <div class="clear"></div>
+
+		<section class="panel panel-default">
+			<div class="panel-body">
+
+				<div class="form-group"> 
+                    <label>Описание цели <span class="text-danger">*</span></label> 
+                    <textarea name="OBJECTIVE" class="FIELD_OBJECTIVE form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled")  } rows="6" data-minwords="6" data-required="true"></textarea> 
+                </div>
+
+				<div class="form-group"> 
+                    @*<label>Metric <span class="text-danger">*</span></label>
+        <textarea name="METRIC" class="FIELD_METRIC form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled") } rows="6" data-minwords="6" data-required="true"></textarea>*@
+                    <label>Вес<span class="text-danger">*</span></label>
+                    <select class="FIELD_METRIC form-control " name="METRIC">
+                        <option data-action="5" selected value="5">5</option>
+                        <option data-action="10" selected value="10">10</option>
+                        <option data-action="15" selected value="15">15</option>
+                        <option data-action="20" selected value="20">20</option>
+                        <option data-action="25" selected value="25">25</option>
+                        <option data-action="30" selected value="30">30</option>
+                        <option data-action="35" selected value="35">35</option>
+                        <option data-action="40" selected value="40">40</option>
+                        <option data-action="45" selected value="45">45</option>
+                        <option data-action="50" selected value="50">50</option>
+                        <option data-action="55" selected value="55">55</option>
+                        <option data-action="60" selected value="60">60</option>
+                        <option data-action="65" selected value="65">65</option>
+                        <option data-action="70" selected value="70">70</option>
+                        <option data-action="75" selected value="75">75</option>
+                        <option data-action="80" selected value="80">80</option>
+                        <option data-action="85" selected value="85">85</option>
+                        <option data-action="90" selected value="90">90</option>
+                        <option data-action="95" selected value="95">95</option>
+                        <option data-action="100" selected value="100">100</option>
+                    </select>
+                </div>
+
+				<div class="form-group"> 
+                    <label>Критерий достижения <span class="text-danger">*</span></label> 
+                    <textarea name="DESCRIPTION" class="FIELD_DESCRIPTION form-control parsley-validated " @if (perform.CUR_FORM.ORDER_ID > 1) { @("disabled")  } rows="6" data-minwords="6" data-required="true"></textarea>
+                </div>               
+
+				<div class="form-group"> 
+                    <label>На что влияет</label> 
+                    <select  class="FIELD_STATE form-control " name="STATE">
+					    <option data-action="0" value="0">Не определено</option>
+					    <option data-action="2" value="1">Выручка</option>
+					    <option data-action="3" value="2">OIBDA</option>
+					    <option data-action="4" value="3">ПТР</option>
+					    <option data-action="5" value="4">Выручка,OIBDA,ПТР</option>
+					    @*<option data-action="6" value="5">Отменена </option>*@
+                    </select>
+                </div>
+
+			</div>						
+		</section>
+		<a href="javascript:;" class="btn btn-s-md btn-info save-btn" data-id="" ng-click="AddEditObjClick('edit_current_objective', @perform.CUR_FORM.ID, @ViewBag.PersFormID)">Cохранить изменения</a>&nbsp;
+		<a href="javascript:;" class="btn btn-s-md btn-info" onclick="$.fancybox.close();">Отмена</a>	
+    </div>		
+
+    <div id="add_new_dev_plan" class="hidden-print">
+		<h3 class="m-b-none m-t-none ">Добавить План развития</h3> <br/>
+        <div class="alert alert-danger" style="display:none" ng-hide="add_plan_state==0" ng-show="add_plan_state==1"><h5>{{add_plan_text}}</h5></div>
+        <div class="alert alert-success" style="display:none" ng-hide="add_plan_success_state==0" ng-show="add_plan_success_state==1"><h5>{{add_plan_success_text}}</h5></div>
+        <div class="clear"></div>
+		    <section class="panel panel-default">
+			    <div class="panel-body">
+
+				    <div class="form-group"> 
+                        <label>Зона развития <span class="text-danger">*</span></label> 
+                        <textarea   name="NAME" class="FIELD_NAME form-control parsley-validated " rows="6" data-minwords="6" data-required="true" ></textarea> 
+                    </div>
+
+				    <div class="form-group"> 
+                        <label>Действие / Временные рамки <span class="text-danger">*</span></label> 
+                        <textarea name="ACTION"  class="FIELD_ACTION form-control parsley-validated " rows="6" data-minwords="6" data-required="true"></textarea> 
+                    </div>
+
+				    <div class="form-group"> 
+                        <label>Результат, который должен быть достигнут <span class="text-danger">*</span></label> 
+                        <textarea name="RESULT" class="FIELD_RESULT form-control parsley-validated " rows="6" data-minwords="6" data-required="true"></textarea>
+                    </div>
+
+				    @*<div class="form-group"> 
+                        <label>Due Date</label> 
+                        <input  id="" name="DUE_DATE" class="FIELD_DUE_DATE input-sm input-s form-control " size="16" type="text" value="">
+                    </div>*@
+
+
+
+				    <div class="form-group"> 
+                        <label>На что влияет</label> 
+                        <select  class="FIELD_STATE form-control " name="STATE">
+					        <option data-action="3" selected value="0">Не определно</option>
+					        <option data-action="4" value="2">Выручка</option>
+					        <option data-action="5" value="1">OIBDA</option>
+					        <option data-action="6" value="3">ПТР</option>
+					        <option data-action="7" value="6">Выручка,OIBDA,ПТР</option>
+					        @*<option data-action="8" value="4">Отменена </option>*@
+                        </select>
+                   </div>
+
+			    </div>						
+		    </section>
+		    <a href="javascript:;" ng-click="AddEditDevPlanClick('add_new_dev_plan', @perform.CUR_FORM.ID, @ViewBag.PersFormID)" class="btn btn-s-md btn-info">Сохранить изменения</a>&nbsp;
+		    <a href="javascript:;" class="btn btn-s-md btn-info" onclick="$.fancybox.close();">Cancel</a>			
+        </div>
+  
+     <div id="edit_dev_plan" class="hidden-print">
+
+		<h3 class="m-b-none m-t-none ">Edit Development Plan</h3> <br/>
+        <div class="alert alert-danger" style="display:none" ng-hide="edit_plan_state==0" ng-show="edit_plan_state==1"><h5>{{edit_plan_text}}</h5></div>
+         <div class="alert alert-success" style="display:none" ng-hide="edit_plan_success_state==0" ng-show="edit_plan_success_state==1"><h5>{{edit_plan_success_text}}</h5></div>
+        <div class="clear"></div>
+
+		    <section class="panel panel-default">
+			    <div class="panel-body">
+
+				    <div class="form-group"> 
+                        <label>Зона развития <span class="text-danger">*</span></label> 
+                        <textarea   name="NAME" class="FIELD_NAME form-control parsley-validated " rows="6" data-minwords="6" data-required="true" ></textarea> 
+                    </div>
+
+				    <div class="form-group"> 
+                        <label>Действие / Временные рамки <span class="text-danger">*</span></label> 
+                        <textarea name="ACTION"  class="FIELD_ACTION form-control parsley-validated " rows="6" data-minwords="6" data-required="true"></textarea> 
+                    </div>
+
+				    <div class="form-group"> 
+                        <label>Результат, который должен быть достигнут <span class="text-danger">*</span></label> 
+                        <textarea name="RESULT" class="FIELD_RESULT form-control parsley-validated " rows="6" data-minwords="6" data-required="true"></textarea>
+                    </div>
+
+				    @*<div class="form-group"> 
+                        <label>Due Date</label> 
+                        <input  id="" name="DUE_DATE" class="FIELD_DUE_DATE input-sm input-s form-control " size="16" type="text" value="">
+                    </div>*@
+
+
+
+				    <div class="form-group"> 
+                        <label>На что влияет</label> 
+                        <select  class="FIELD_STATE form-control " name="STATE">
+					        <option data-action="3" selected value="0">Не определено</option>
+					        <option data-action="4" value="1">Выручка</option>
+					        <option data-action="5" value="2">OIBDA</option>
+					        <option data-action="6" value="3">ПТР</option>
+					        <option data-action="7" value="4">Выручка,OIBDA,ПТР</option>
+					        @*<option data-action="8" value="4">Отменена </option>*@
+                        </select>
+                   </div>
+
+
+			    </div>						
+		    </section>
+		    <a href="javascript:;" ng-click="AddEditDevPlanClick('edit_dev_plan', @perform.CUR_FORM.ID, @ViewBag.PersFormID)" data-id="" class="btn btn-s-md btn-info save-btn" >Сохранить изменения</a>&nbsp;
+		    <a href="javascript:;" class="btn btn-s-md btn-info" onclick="$.fancybox.close();">Отмена</a>			
+        </div>
+
+
+
+    <div id="print_version_master">
+        <h3 class="m-t-none ">Print Version</h3>
+        <div class="alert alert-danger" style="display:none" ng-hide="print_error_state==0" ng-show="print_error_state==1"><h5>{{print_error_text}}</h5></div>
+        <div class="col-md-4 ">
+            <h4>Sections to include</h4>
+            <div class="checkbox"> <label> <input type="checkbox" value="1" ng-model="allPrintCheck" ng-checked="allPrintCheck==1"> All Sections </label> </div>
+            <div class="m-l-xl print-settings">
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock1"> Purpose & Process</label> </div>
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock2"> WHAT </label> </div>
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock3"> Variable pay - Key performance indicators </label> </div>
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock4"> Individual Objectives </label> </div>
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock5"> Values </label> </div>
+                <div class="checkbox"> <label> <input type="checkbox" value="1" ng-checked="allPrintCheck" ng-model="printBLock6"> Development Plan </label> </div>
+            </div>
+             <div class="line2 line-dashed line-lg hidden-print"></div>
+            <a href="javascript:;" class="btn btn-s-md btn-default pull-left m-r" onclick="$.fancybox.close();">Cancel</a>		
+            <a href="javascript:;" class="btn btn-s-md btn-danger pull-left  m-r" onclick="PrintPdf()">PDF</a>		
+            <a href="javascript:;" class="btn btn-s-md btn-info pull-left" ng-click="PrintReview()">Print</a>		
+            <div class="clear"></div>
+        </div>
+        <div class="col-md-8 b-l print-version-performance" id="print_version_performance">
+            <h3 class="m-b m-t m-l" id="print_version_performance_header">@perform.PERSONAL_FORM_INFO[0].SEARCH_FORM_NAME for @perform.USER_CARD_DETAIL[0].CN </h3>
+
+            <!--Purpose-->
+            <div class=" m-b-sm" ng-show="printBLock1==1" ng-hide="printBLock1!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">Purpose & Process</p>
+            </div>
+            <!--end Purpose-->
+
+
+            <!--WHAT-->
+            <div class=" m-b-sm" ng-show="printBLock2==1" ng-hide="printBLock2!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">ЧТО</p>
+            </div>
+            <!--end WHAT-->
+
+           
+            <!--Variable-->
+            <div class=" m-b-sm" ng-show="printBLock3==1" ng-hide="printBLock3!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">Переменная оплата труда - Ключевые показатели эффективности</p>
+            </div>
+            <!--end Variable-->
+
+
+            <!--Objectives-->
+            <div class=" m-b-sm" ng-show="printBLock4==1" ng-hide="printBLock4!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">Индивидуальные цели</p>
+                 <div class="obj-print-list" ng-repeat="obj in objectives">
+                    <h4 class="pull-left obj_name">{{obj.OBJ_NAME}}</h4>
+                    <p class="pull-right print-btn-state obj_state">{{obj.OBJ_STATE}}</p>
+                    <div class="clear"></div>
+                    <p ng-bind-html-unsafe="obj.OBJ_METRIC" class="obj_metric"></p>
+                    <div class="clear">&nbsp;</div>
+                     <p><b>Рейтинг</b></p>
+                     <p class="obj_rating">{{obj.OBJ_RATING_TEXT}}</p><br />
+
+                     <p class="comments-label"><b>@(perform.USER_CARD_DETAIL[0].CN)Комментарий</b></p>
+                     <div ng-repeat="comment in obj.OBJ_COMMENTS" class="employee-comments">{{comment.text}}</div>
+                    <div class="line2 line-dashed line-lg"></div>
+                </div>
+            </div>
+            <!--end Objectives-->
+
+              
+            <!--Values-->
+            <div class=" m-b-sm" ng-show="printBLock5==1" ng-hide="printBLock5!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">Values</p>
+               <div ng-repeat="val in values" class="values-block-detail">
+                   <h4 class="value-name">{{val.VALUE_NAME}}</h4>
+                   <p class="h5"><b class="value-subname">{{val.VALUE_SUB_NAME}}</b></p>
+                   <div ng-bind-html-unsafe="val.VALUE_TEXT" class="value-text"></div>
+                   <p><b>Рейтинг</b></p>
+                   <p class="value-rating">{{val.VALUE_RATING_TEXT}}</p>
+                   <div class="line2 line-dashed line-lg"></div>
+               </div>
+            </div>
+            <!--end Values-->
+
+
+            <!--Development-->
+            <div class=" m-b-sm" ng-show="printBLock6==1" ng-hide="printBLock6!=1 || !allPrintCheck">
+                <p class="h4 print-headers m-b">Development Plan</p>
+                <div ng-repeat="plan in devPlan" class="dev-plan-item">
+                    <h4 class="pull-left dev_name">{{plan.DEV_NAME}}</h4>
+                    <p class="pull-right print-btn-state dev_state">{{plan.DEV_STATE}}</p>
+                    <div class="clear"></div>   
+                    <p class="dev_action">{{plan.DEV_ACTION}}</p>
+                    <small class="dev_result">{{plan.DEV_RESULT}}</small>
+                    <div class="line2 line-dashed line-lg"></div>
+                </div>
+            </div>
+            <!--end Development-->
+        </div>
+    </div>
+
+</section>
+
+<script src="/content/js/jquery-1.10.1.min.js"></script>
+
+<script src="/content/js/app.v1.js"></script>
+<script src="/content/js/jquery.fancybox.js"></script>
+
+<script src="/content/js/angular.js"></script>
+<script src="/content/js/angular-sanitize.min.js"></script>
+<script src="@string.Format("/content/js/AngularAppPerfReview.js?version={0}", DateTime.Now.Ticks)"></script>
+
+<script src="/content/js/select2.min.js"></script>
+
+<script src="/content/js/app.plugin.js"></script>
+<script src="/content/js/jquery.datetimepickerJQ.js"></script>
+<script src="/content/js/performance.manager.js"></script>
+
+
+<script src="/content/js/libs/base64.js"></script>
+<script src="/content/js/pdfMake.js"></script>
+<script src="/content/js/pdfMakeFonts.js"></script>
+<script src="/content/js/pdfMakeAce.js"></script>
+<script src="/content/js/html2canvas.js"></script>
+<script>
+    $(document).ready(function () {
+        //setTimeout(function () { $(".reportGroup_3802").addClass("active"); $("#close_aside").trigger("click"); }, 500);
+
+        $(".view_users_all").select2();
+        
+    });
+
+
+    function PrintPdf() {
+
+        var scope = angular.element('[ng-controller=RerfReviewCtrl]').scope();
+        scope.print_error_state = 0;
+        scope.print_error_text = "";
+        document.getElementsByClassName("loading")[0].style.display = 'block';
+
+        try{
+           
+            var arObjs = [];
+            if ($("#print_version_master .obj-print-list").length > 0) {
+                $("#print_version_master .obj-print-list").each(function () {
+                    var self = $(this);
+                    var obj_name = self.find(".obj_name").text();
+                    var obj_state = self.find(".obj_state").text();
+                    var obj_metric = self.find(".obj_metric").text();
+                    var obj_rating = self.find(".obj_rating").text();
+                    var comment_label = self.find(".comments-label b").text();
+
+                    arObjs.push([
+                        { border: [false, false, false, false], fontSize: 16, text: obj_name },
+                        { border: [true, true, true, true], text: obj_state }
+                    ]);
+
+                    arObjs.push([
+                        { border: [false, false, false, false], margin: [0, 10, 0, 20], text: obj_metric },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+
+                    arObjs.push([
+                        { border: [false, false, false, false], bold: true, text: 'Rating: ' },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+                    arObjs.push([
+                        { border: [false, false, false, false], text: obj_rating },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+                    arObjs.push([
+                        { border: [false, false, false, false], text: ' ' },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+
+                    arObjs.push([
+                        { border: [false, false, false, false], bold: true, text: comment_label },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+                    self.find(".employee-comments").each(function () {
+                        var comm = $(this);
+                        arObjs.push([
+                            { border: [false, false, false, false], text: comm.text() },
+                            { border: [false, false, false, false], text: ' ' }
+                        ]);
+                    });
+
+                    arObjs.push([{ border: [false, false, false, false], text: ' ' }, { border: [false, false, false, false], text: ' ' }]);
+                    arObjs.push([{ border: [false, true, false, false], text: ' ' }, { border: [false, true, false, false], text: ' ' }]);
+                });
+            }
+            else {
+                arObjs.push([{ border: [false, false, false, false], text: ' ' }, { border: [false, false, false, false], text: ' ' }]);
+                arObjs.push([{ border: [false, true, false, false], text: ' ' }, { border: [false, true, false, false], text: ' ' }]);
+            }
+
+        
+       
+            var arValues = [];
+            if ($("#print_version_master .values-block-detail").length > 0) {
+                $("#print_version_master .values-block-detail").each(function () {
+                    var self = $(this);
+                    var value_name = self.find(".value-name").text();
+                    var value_subname = self.find(".value-subname").text();
+                    var value_rating = self.find(".value-rating").text();
+
+                    arValues.push([
+                        { border: [false, false, false, false], fontSize: 16, text: value_name }
+                    ]);
+
+                    arValues.push([
+                        { border: [false, false, false, false], bold: true, text: value_subname }
+                    ]);
+
+                    self.find(".value-text ul").each(function () {
+                        var selfUl = $(this);
+                        selfUl.find("li").each(function () {
+                            var li = $(this);
+                            arValues.push([{ border: [false, false, false, false], text: '• ' + li.text(), margin: [10, 0, 0, 0] }]);
+                        });
+                        arValues.push([{ border: [false, false, false, false], text: ' ' }]);
+                    });
+
+                    arValues.push([
+                       { border: [false, false, false, false], bold: true, text: 'Rating: ' }
+                    ]);
+                    arValues.push([
+                        { border: [false, false, false, false], text: value_rating }
+                    ]);
+
+                    arValues.push([{ border: [false, false, false, false], text: ' ' }]);
+                    arValues.push([{ border: [false, true, false, false], text: ' ' }]);
+                });
+            }
+            else {
+                arValues.push([{ border: [false, false, false, false], text: ' ' }]);
+                arValues.push([{ border: [false, true, false, false], text: ' ' }]);
+            }
+
+            var arDevplan = [];
+            if ($("#print_version_master .dev-plan-item").length > 0) {
+                $("#print_version_master .dev-plan-item").each(function () {
+                    var self = $(this);
+                    var dev_name = self.find(".dev_name").text();
+                    var dev_state = self.find(".dev_state").text();
+                    var dev_action = self.find(".dev_action").text();
+                    var dev_result = self.find(".dev_result").text();
+
+                    arDevplan.push([
+                        { border: [false, false, false, false], fontSize: 16, text: dev_name },
+                        { border: [true, true, true, true], text: dev_state }
+                    ]);
+
+                    arDevplan.push([
+                        { border: [false, false, false, false], margin: [0, 10, 0, 20], text: dev_action },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+
+                    arDevplan.push([
+                        { border: [false, false, false, false], margin: [0, 10, 0, 20], fontSize: 12, text: dev_result },
+                        { border: [false, false, false, false], text: ' ' }
+                    ]);
+
+                    arDevplan.push([{ border: [false, false, false, false], text: ' ' }, { border: [false, false, false, false], text: ' ' }]);
+                    arDevplan.push([{ border: [false, true, false, false], text: ' ' }, { border: [false, true, false, false], text: ' ' }]);
+                });
+            }
+            else {
+                arDevplan.push([{ border: [false, false, false, false], text: ' ' }, { border: [false, false, false, false], text: ' ' }]);
+                arDevplan.push([{ border: [false, true, false, false], text: ' ' }, { border: [false, true, false, false], text: ' ' }]);
+            }
+
+
+            var pdf_version = {
+                content: [
+                    //fullText
+                    {
+                        text: $("#print_version_performance_header").text(),
+                        style: 'header'
+                    },
+                    {
+
+                        table: {
+                            widths: ['*'],
+                            body: [[{ border: [false, false, false, false], text: 'Individual Objectives', fillColor: '#dddddd', fontSize: 16 }]]
+                        },
+                        layout: {
+                            defaultBorder: false
+                        }
+                    },
+                    {
+                        text: ' '
+                    },
+                   {
+                       table: {
+                           widths: ['*', 'auto'],
+                           body: arObjs
+                       },
+                       layout: {
+                           defaultBorder: false
+                       },
+                       pageBreak: 'after'
+                   },
+                   {
+
+                       table: {
+                           widths: ['*'],
+                           body: [[{ border: [false, false, false, false], text: 'Values', fillColor: '#dddddd', fontSize: 16 }]]
+                       },
+                       layout: {
+                           defaultBorder: false
+                       }
+                   },
+                    {
+                        text: ' '
+                    },
+                    {
+                        table: {
+                            widths: ['*'],
+                            body: arValues
+                        },
+                        layout: {
+                            defaultBorder: false
+                        },
+                        pageBreak: 'after'
+                    },
+                    {
+
+                        table: {
+                            widths: ['*'],
+                            body: [[{ border: [false, false, false, false], text: 'Development Plan', fillColor: '#dddddd', fontSize: 16 }]]
+                        },
+                        layout: {
+                            defaultBorder: false
+                        }
+                    },
+                    {
+                        text: ' '
+                    },
+                    {
+                        table: {
+                            widths: ['*', 'auto'],
+                            body: arDevplan
+                        },
+                        layout: {
+                            defaultBorder: false
+                        }
+                    }
+                ],
+
+                styles: {
+                    header: {
+                        fontSize: 18,
+                        bold: true,
+                        margin: [0,0,0,20]
+                    },
+                    subheader: {
+                        fontSize: 16,
+                        bold: true,
+                        margin: [0, 0, 0, 20]
+                    }
+                }
+            };
+
+            var main_user_name = $.trim($(".main_user_name").text()).replace(/\ /g, '_');
+            pdfMake.createPdf(pdf_version).download(main_user_name + '_performance_review.pdf');
+            document.getElementsByClassName("loading")[0].style.display = 'none';
+        }
+        catch(ex){
+            document.getElementsByClassName("loading")[0].style.display = 'none';
+            scope.print_error_state = 1;
+            scope.print_error_text = ex.message;
+        }
+    }
+
+</script>
